@@ -5,7 +5,7 @@ on:
     inputs:
 
       ipa_url:
-        description: "URL to the decrypted IPA file"
+        description: "URL to the decrypted IPA file, or release:<tag> to use an IPA attached to a release in this repo"
         default: ""
         required: true
         type: string
@@ -29,7 +29,7 @@ concurrency:
 jobs:
   build:
     name: 
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     permissions:
       contents: write
 
@@ -46,8 +46,16 @@ jobs:
           exclude_inputs: display_name,bundle_id
 
       - name: Download and validate IPA
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IPA_URL: ${{ inputs.ipa_url }}
         run: |
-          wget "${{ inputs.ipa_url }}" --no-verbose -O ${{ github.workspace }}/facebook.ipa
+          if [[ "$IPA_URL" == release:* ]]; then
+            tag="${IPA_URL#release:}"
+            gh release download "$tag" --repo "${{ github.repository }}" --pattern "*.ipa" --output ${{ github.workspace }}/facebook.ipa
+          else
+            wget "$IPA_URL" --no-verbose -O ${{ github.workspace }}/facebook.ipa
+          fi
 
           file_type=$(file --mime-type -b ${{ github.workspace }}/facebook.ipa)
 
